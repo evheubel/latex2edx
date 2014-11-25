@@ -606,7 +606,6 @@ class latex2edx(object):
         labeldict = {}  # {'labeltag':['loc. URL','chapnum.labelnum']}
         tocrefdict = {}  # {'tocref':[['locstr'],['parent name']]}
         labelcnt = {}  # {'labeltag':cnt}
-        keymap = {}  # {label: ['description', [URL], [display_name]]}
         chapref = '0'
         for label in tree.xpath('.//label|//toclabel'):
             locstr = label.get('tmploc')
@@ -792,13 +791,8 @@ class latex2edx(object):
                 tablecont.append(etree.Element(
                     'ul', {'class': '{}assess'.format(toclabel.split(':')[0].
                                                       upper())}))
-                tocrefs = tocrefdict.pop(toclabel)
-                if ':' not in toclabel:
-                    keymap[toclabel] = [tocdict[toclabel][1],
-                                        [mapdict[x][0] for x in tocrefs[0]],
-                                        [mapdict[x][1] for x in tocrefs[0]]]
-                tocrefnames = tocrefs[1]
-                tocrefs = tocrefs[0]
+                tocrefnames = tocrefdict[toclabel][1]
+                tocrefs = tocrefdict[toclabel][0]
                 for tocref in tocrefs:
                     tableli = etree.Element('li')
                     tableli.append(etree.Element(
@@ -857,7 +851,7 @@ class latex2edx(object):
                 return repr(self.value)
 
         # EVH: Check for unused tocrefs
-        for tocref in tocrefdict:
+        for tocref in list(set(tocrefdict) - set(labeldict)):
             try:
                 raise MissingLabel(tocref)
             except MissingLabel as referr:
@@ -980,8 +974,6 @@ class latex2edx(object):
             p.remove(indexref)
 
         # EVH: Find and replace references everywhere with ref number and link
-        # EVH: Build keymap dictonary for keywords when reference do not have
-        #      a ':' character
         for aref in tree.findall('.//ref'):
             reflabel = aref.text
             locstr = aref.attrib.pop('tmploc')
