@@ -606,6 +606,7 @@ class latex2edx(object):
         labeldict = {}  # {'labeltag':['loc. URL','chapnum.labelnum']}
         tocrefdict = {}  # {'tocref':[['locstr'],['parent name']]}
         labelcnt = {}  # {'labeltag':cnt}
+        keymap = {}  # {label: ['description', [URL], [display_name]]}
         chapref = '0'
         for label in tree.xpath('.//label|//toclabel'):
             locstr = label.get('tmploc')
@@ -714,6 +715,7 @@ class latex2edx(object):
                 link.set('id', tocrefid)
         tochead = ['h2', 'h3', 'h4']
         if len(toclist) != 0:
+            print "Creating ToC index content..."
             # EVH: Start building tocindex.html
             toctree = etree.Element('html')
             toctree.append(etree.fromstring('<head></head>'))
@@ -791,6 +793,10 @@ class latex2edx(object):
                     'ul', {'class': '{}assess'.format(toclabel.split(':')[0].
                                                       upper())}))
                 tocrefs = tocrefdict.pop(toclabel)
+                if ':' not in toclabel:
+                    keymap[toclabel] = [tocdict[toclabel][1],
+                                        [mapdict[x][0] for x in tocrefs[0]],
+                                        [mapdict[x][1] for x in tocrefs[0]]]
                 tocrefnames = tocrefs[1]
                 tocrefs = tocrefs[0]
                 for tocref in tocrefs:
@@ -822,7 +828,7 @@ class latex2edx(object):
                     tablecont.text = tocname
             tocbody.append(toctable)
         if len(tocdict) != 0:
-            print "Writing ToC index content..."
+            print "Writing tocindex.html to tabs/ ..."
             if not os.path.exists(self.output_dir):
                 os.mkdir(self.output_dir)
             if not os.path.exists(self.output_dir / 'tabs'):
@@ -974,9 +980,21 @@ class latex2edx(object):
             p.remove(indexref)
 
         # EVH: Find and replace references everywhere with ref number and link
+        # EVH: Build keymap dictonary for keywords when reference do not have
+        #      a ':' character
         for aref in tree.findall('.//ref'):
             reflabel = aref.text
             locstr = aref.attrib.pop('tmploc')
+            if ':' not in reflabel:
+                if reflabel in keymap:
+                    keymap[reflabel][1].append(mapdict[locstr][0])
+                    keymap[reflabel][2].append(mapdict[locstr][1])
+                else:
+                    keymap[reflabel] = ['',
+                                        [mapdict[locstr][0]],
+                                        [mapdict[locstr][1]]]
+                    if reflabel in tocdict:
+                        keymap[reflabel][0] = tocdict[reflabel][1]
             if self.popup_flag:
                 relurl = ''
             else:
